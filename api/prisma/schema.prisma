@@ -1,0 +1,48 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Statistic {
+  STATISTIC_ONE
+  STATISTIC_TWO
+}
+
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+  FINALIZED
+  FAULTY
+}
+
+model XPChangeProposal {
+  id String @id @default(uuid())
+
+  CommunityMember           CommunityMember @relation(fields: [communityMemberEthAddress], references: [ethAddress])
+  communityMemberEthAddress String
+
+  statistic    Statistic
+  status       Status
+  value        Int
+  gnosisSafeId String    @db.VarChar(100)
+  txHash       String    @db.VarChar(66)
+  ipfsURL      String    @db.VarChar(100)
+}
+
+model CommunityMember {
+  id                     String             @id @default(uuid())
+  ethAddress             String             @unique
+  prsMerged              Int
+  communityCallsAttended Int
+  githubUsername         String?            @unique
+  discordUsername        String?            @unique
+  proposals              XPChangeProposal[]
+}
