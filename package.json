@@ -4,6 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "start:service": "ts-node api/src/index.ts",
     "prisma-migrate:test": "dotenv -e .env -- npx prisma migrate dev"
   },
   "dependencies": {
