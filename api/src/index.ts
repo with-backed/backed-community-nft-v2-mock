@@ -95,7 +95,7 @@ app.post("/proposals/reject", async (req, res) => {
   });
 });
 
-app.post("/proposals/all", async (req, res) => {
+app.get("/proposals/all", async (req, res) => {
   return res.json({
     proposals: await prisma.xPChangeProposal.findMany(),
   });
