@@ -2,24 +2,42 @@
 pragma solidity 0.8.12;
 
 contract BackedCommunityNFTMock {
-    uint8 public statisticOne;
-    uint8 public statisticTwo;
+    uint256 public categoryCount;
 
-    address public owner;
-
-    constructor(address _manager) {
-        owner = _manager;
+    struct Category {
+        string displayName;
+        address art;
     }
 
-    function setOwner(address newOwner) public {
-        owner = newOwner;
+    struct CategoryScoreChange {
+        address addr;
+        uint256 categoryId;
+        uint256 score;
     }
 
-    function setStatisticOne(uint8 value) public {
-        statisticOne = value;
+    mapping(uint256 => Category) categoryIdToCategory;
+
+    mapping(address => mapping(uint256 => uint256)) addressToCategoryScore;
+
+    function addCategory(Category memory category) public {
+        categoryIdToCategory[categoryCount++] = category;
     }
 
-    function setStatisticTwo(uint8 value) public {
-        statisticTwo = value;
+    function setCategoryScores(CategoryScoreChange[] memory changes) public {
+        for (uint256 i = 0; i < changes.length; i++) {
+            _setCategoryScore(changes[i]);
+        }
+    }
+
+    function getScoreForAddressAndCategory(address addr, uint256 categoryId)
+        public
+        view
+        returns (uint256)
+    {
+        return addressToCategoryScore[addr][categoryId];
+    }
+
+    function _setCategoryScore(CategoryScoreChange memory change) internal {
+        addressToCategoryScore[change.addr][change.categoryId] = change.score;
     }
 }

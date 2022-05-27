@@ -4,12 +4,9 @@ import bodyParser from "body-parser";
 const app = express();
 app.use(bodyParser.json());
 
-import {
-  CommunityMember,
-  PrismaClient,
-  Statistic,
-  Status,
-} from "@prisma/client";
+import { CommunityMember, PrismaClient, Status } from "@prisma/client";
+import { postJSONToIPFS } from "./ipfs";
+import { getTransactionStatusFromGnosisNonce, proposeTx } from "./gnosis";
 
 const port = process.env.PORT || 3001;
 
@@ -17,7 +14,7 @@ const prisma = new PrismaClient();
 
 type CreateProposalBody = {
   ethAddress: string;
-  statistic: Statistic;
+  categoryId: number;
   value: number;
 };
 
@@ -26,7 +23,7 @@ type DecisionProposalBody = {
 };
 
 app.post("/proposals/create", async (req, res) => {
-  const { ethAddress, statistic, value } = req.body as CreateProposalBody;
+  const { ethAddress, categoryId, value } = req.body as CreateProposalBody;
 
   let communityMember: CommunityMember | null;
 
@@ -41,10 +38,10 @@ app.post("/proposals/create", async (req, res) => {
     data: {
       status: Status.PENDING,
       communityMemberEthAddress: ethAddress,
-      statistic,
+      categoryId,
       value,
       txHash: "",
-      gnosisSafeId: "",
+      gnosisSafeNonce: 0,
       ipfsURL: "",
     },
   });
@@ -54,38 +51,33 @@ app.post("/proposals/create", async (req, res) => {
   });
 });
 
-app.post("/proposals/approve", async (req, res) => {
-  const { id } = req.body as DecisionProposalBody;
+app.post("/proposals/:id/approve", async (req, res) => {
+  const { id } = req.params as DecisionProposalBody;
 
   const proposal = await prisma.xPChangeProposal.findUnique({
     where: { id },
   });
 
-  // publish to ipfs
-  let ipfsURL = "some-ipfs-url";
-
-  // send tx to gnosis safe
-  let gnosisSafeId = "some-id";
-  // need a way to get a callback when official optimism tx gets posted
+  if (proposal?.status !== Status.PENDING) {
+    return res.status(400).json({
+      message: "Proposal is not in PENDING state",
+    });
+  }
 
   await prisma.xPChangeProposal.update({
     where: { id },
     data: {
       status: Status.APPROVED,
-      gnosisSafeId,
-      ipfsURL,
     },
   });
 
   return res.json({
     success: true,
-    ipfsURL,
-    gnosisSafeId,
   });
 });
 
-app.post("/proposals/reject", async (req, res) => {
-  const { id } = req.body as DecisionProposalBody;
+app.post("/proposals/:id/reject", async (req, res) => {
+  const { id } = req.params as DecisionProposalBody;
 
   await prisma.xPChangeProposal.update({
     where: { id },
@@ -102,6 +94,77 @@ app.post("/proposals/reject", async (req, res) => {
 app.get("/proposals/all", async (req, res) => {
   return res.json({
     proposals: await prisma.xPChangeProposal.findMany(),
+  });
+});
+
+app.post("/proposals/cron/process", async (req, res) => {
+  const approvedProposals = await prisma.xPChangeProposal.findMany({
+    where: { status: "APPROVED" },
+  });
+
+  if (approvedProposals.length === 0) return res.json({ success: true });
+
+  const pinataResponse = await postJSONToIPFS(approvedProposals);
+
+  await Promise.all(
+    approvedProposals.map((proposal) => {
+      return prisma.xPChangeProposal.update({
+        where: { id: proposal.id },
+        data: {
+          ipfsURL: pinataResponse.IpfsHash,
+        },
+      });
+    })
+  );
+
+  const nonce = await proposeTx(approvedProposals);
+
+  await Promise.all(
+    approvedProposals.map((proposal) => {
+      return prisma.xPChangeProposal.update({
+        where: { id: proposal.id },
+        data: {
+          gnosisSafeNonce: nonce,
+          status: Status.PROCESSING,
+        },
+      });
+    })
+  );
+
+  return res.json({ success: true });
+});
+
+app.post("/proposals/cron/finalize", async (req, res) => {
+  const processingProposals = await prisma.xPChangeProposal.findMany({
+    where: { status: "PROCESSING" },
+  });
+
+  if (processingProposals.length === 0) return res.json({ success: true });
+
+  processingProposals.forEach(async (proposal) => {
+    const [txHash, confirmed] = await getTransactionStatusFromGnosisNonce(
+      proposal.gnosisSafeNonce
+    );
+    if (confirmed) {
+      await prisma.xPChangeProposal.update({
+        where: { id: proposal.id },
+        data: {
+          status: Status.FINALIZED,
+          txHash,
+        },
+      });
+    } else {
+      await prisma.xPChangeProposal.update({
+        where: { id: proposal.id },
+        data: {
+          status: Status.APPROVED,
+        },
+      });
+    }
+  });
+
+  return res.json({
+    success: true,
   });
 });
 

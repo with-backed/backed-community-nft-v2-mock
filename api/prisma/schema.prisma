@@ -11,15 +11,11 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-enum Statistic {
-  STATISTIC_ONE
-  STATISTIC_TWO
-}
-
 enum Status {
   PENDING
   APPROVED
   REJECTED
+  PROCESSING
   FINALIZED
   FAULTY
 }
@@ -30,12 +26,12 @@ model XPChangeProposal {
   CommunityMember           CommunityMember @relation(fields: [communityMemberEthAddress], references: [ethAddress])
   communityMemberEthAddress String
 
-  statistic    Statistic
-  status       Status
-  value        Int
-  gnosisSafeId String    @db.VarChar(100)
-  txHash       String    @db.VarChar(66)
-  ipfsURL      String    @db.VarChar(100)
+  categoryId      Int
+  status          Status
+  value           Int
+  gnosisSafeNonce Int
+  txHash          String @db.VarChar(66)
+  ipfsURL         String @db.VarChar(100)
 }
 
 model CommunityMember {

@@ -4,17 +4,35 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "start:dev": "npx dotenv -e .env.development -- npx ts-node api/src/index.ts",
     "start:service": "ts-node api/src/index.ts",
-    "prisma-migrate:test": "dotenv -e .env -- npx prisma migrate dev"
+    "prisma-migrate:test": "dotenv -e .env -- npx prisma migrate dev",
+    "deploy:contract": "forge create --rpc-url https://eth-rinkeby.alchemyapi.io/v2/BtHbvji7nhBOC943JJB2XoXMSJAh64g- --private-key contracts/src/BackedCommunityNFTMock.sol:BackedCommunityNFTMock"
   },
   "dependencies": {
+    "@alch/alchemy-web3": "^1.4.2",
+    "@gnosis.pm/safe-core-sdk": "^2.1.0",
+    "@gnosis.pm/safe-core-sdk-types": "^1.1.0",
+    "@gnosis.pm/safe-ethers-lib": "^1.1.0",
+    "@gnosis.pm/safe-service-client": "^1.1.2",
+    "@noble/hashes": "^1.0.0",
+    "@pinata/sdk": "^1.1.25",
     "@prisma/client": "^3.14.0",
+    "axios": "^0.27.2",
+    "bignumber.js": "^9.0.2",
     "body-parser": "^1.20.0",
+    "dayjs": "^1.11.2",
+    "eip-712": "^1.0.0",
+    "eth-typed-data": "^0.1.0-beta.0",
+    "ethereumjs-util": "^7.1.4",
+    "ethers": "^5.6.7",
     "express": "^4.18.1",
+    "lodash": "^4.17.21",
     "prisma": "^3.14.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
+    "@types/lodash": "^4.14.182",
     "@types/node": "^17.0.35",
     "dotenv-cli": "5.0.0",
     "ts-node": "^10.8.0",
